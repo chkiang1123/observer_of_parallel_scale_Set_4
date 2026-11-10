@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scale Observer Deck - Set 4</title>
+    <!-- SheetJS for client-side Google Sheet parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --red: #ff4d4d;
+            --orange: #ffa500;
+            --green: #2ecc71;
+            --blue: #3498db;
+            --purple: #9b59b6;
+            --gold: #d4af37;
+            --silver: #bdc3c7;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1f;
+            color: #fff;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+            min-height: 100vh;
+            overflow-y: auto;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-grow: 1;
+            position: relative;
+        }
+
+        /* Top-Right Hand Corner Set 4 Badge */
+        .set-indicator-badge {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: rgba(212, 175, 55, 0.15);
+            border: 2px solid var(--gold);
+            color: var(--gold);
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 100%;
+            flex-grow: 1;
+        }
+
+        .scale-column {
+            background: #25252d;
+            padding: 16px 18px;
+            border-radius: 16px;
+            box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .scale-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            text-align: center;
+            padding-bottom: 6px;
+            border-bottom: 2px solid rgba(255,255,255,0.06);
+        }
+
+        .scale-graphic-container {
+            flex-grow: 1;
+            min-height: 350px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            position: relative;
+            background: #141419;
+            border-radius: 12px;
+            padding: 0 20px 20px 20px;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .scale-base { width: 140px; height: 12px; background: #444; border-radius: 4px 4px 0 0; position: relative; z-index: 1; }
+        .scale-pillar { width: 18px; height: 210px; background: #666; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 1; }
+
+        .scale-beam-assembly {
+            position: absolute; top: 85px; left: 50%; width: 76%; max-width: 360px;
+            transform: translateX(-50%) rotate(0deg); transform-origin: center center;
+            z-index: 2; transition: transform 1.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        .scale-beam { width: 100%; height: 10px; position: relative; border-radius: 4px; }
+        .primary-col .scale-beam { background: var(--gold); }
+        .secondary-col .scale-beam { background: var(--silver); }
+
+        .hanger {
+            position: absolute; top: 10px; width: 3px; height: 50px; background: #888;
+            transform-origin: top center; transition: transform 1.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        .hanger-left { left: 25px; }
+        .hanger-right { right: 25px; }
+
+        .pan {
+            position: absolute; top: 50px; width: 130px; height: 140px;
+            background: rgba(255, 255, 255, 0.03); border: 2px dashed #444; border-bottom: 6px solid #555;
+            border-radius: 6px 6px 12px 12px; transform: translateX(-50%) rotate(0deg);
+            transform-origin: top center; display: flex; flex-direction: column-reverse;
+            justify-content: flex-start; padding: 8px; gap: 5px; box-sizing: border-box;
+            transition: transform 1.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        .pan-left { left: 50%; }
+        .pan-right { left: 50%; }
+
+        .pan-blocks-shelf { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+        .pan-cubes-shelf { display: flex; flex-wrap: wrap; justify-content: flex-start; align-content: flex-start; gap: 4px; width: 100%; }
+
+        .color-row-strip {
+            display: flex; align-items: center; justify-content: space-between; width: 100%; height: 24px; padding: 0 8px; border-radius: 4px;
+            box-sizing: border-box; font-size: 12px; font-weight: 800; color: #000;
+            box-shadow: inset 0 0 3px rgba(0,0,0,0.3), 0 2px 4px rgba(0,0,0,0.3);
+            animation: dropFromSky 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
+        .cube-sprite {
+            width: 18px; height: 18px; border-radius: 3px;
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.4);
+        }
+        .cube-sprite.dropping { animation: dropFromSky 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; }
+
+        @keyframes dropFromSky {
+            0% { transform: translateY(-260px) scale(1.3); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        .result-box {
+            background: #111; padding: 12px; border-radius: 10px; text-align: center;
+            font-size: 14px; font-weight: bold; margin-top: 14px; border-left: 6px solid #555;
+            transition: all 0.3s ease; opacity: 0.3;
+        }
+        .result-box.active { opacity: 1; }
+        .balanced { color: #2ecc71; border-left-color: #2ecc71; }
+        .left-heavy { color: #f1c40f; border-left-color: #f1c40f; }
+        .right-heavy { color: #e67e22; border-left-color: #e67e22; }
+
+        /* --- CONTROL ACTIONS --- */
+        .bottom-actions { margin-top: 20px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        
+        .btn-update {
+            background-color: #3498db; color: white; font-size: 22px; font-weight: bold;
+            padding: 16px 70px; border-radius: 12px; box-shadow: 0 5px 18px rgba(52, 152, 219, 0.4); border: none; cursor: pointer;
+            text-transform: uppercase; letter-spacing: 1.5px; transition: transform 0.1s ease, background-color 0.2s ease;
+        }
+        .btn-update:hover { background-color: #2980b9; }
+        .btn-update:active { transform: scale(0.97); }
+        .btn-update:disabled { background-color: #555; box-shadow: none; cursor: not-allowed; }
+
+        .status-text { color: #aaa; font-size: 15px; font-style: italic; min-height: 22px; text-align: center; }
+
+        /* --- DASHBOARD (INVENTORY & RECORD LOG) --- */
+        .dashboard-container {
+            width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+            margin-top: 20px;
+        }
+
+        .dashboard-panel {
+            background: #25252d; border-radius: 14px; padding: 16px 20px;
+            box-shadow: 0 10px 28px rgba(0,0,0,0.35); box-sizing: border-box;
+        }
+
+        .dashboard-panel h3 {
+            margin-top: 0; margin-bottom: 12px; font-size: 16px; color: #fff;
+            text-align: center; border-bottom: 2px solid rgba(255,255,255,0.07); padding-bottom: 8px;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid #333; font-size: 14px; transition: opacity 0.3s, color 0.3s; }
+        th { background-color: #141419; text-transform: uppercase; color: #999; }
+        
+        .color-cell { display: flex; align-items: center; justify-content: flex-start; gap: 8px; font-weight: bold; padding-left: 10px; }
+        .color-dot { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+        
+        .group-selector-ui { display:flex; justify-content:center; align-items:center; gap: 12px; margin-bottom: 12px; }
+        select { font-size: 16px; padding: 6px 12px; border-radius: 6px; background: #111; color: white; border: 1px solid #555; cursor: pointer; outline: none; }
+        
+        .dimmed { opacity: 0.3; }
+        .highlighted-col { color: var(--gold); font-weight: bold; font-size: 18px; opacity: 1; text-shadow: 0 0 5px rgba(212, 175, 55, 0.5); }
+        .highlighted-th { color: var(--gold); }
+
+        /* Replay-enabled History Card */
+        #record-list { display: flex; flex-direction: column; gap: 10px; max-height: 250px; overflow-y: auto; padding-right: 5px; }
+        .record-placeholder { text-align: center; color: #777; font-style: italic; padding: 12px; font-size: 14px; }
+        
+        .record-item {
+            background: #1f1f26; padding: 12px 14px; border-radius: 8px; font-size: 13px;
+            border-left: 5px solid #3498db; line-height: 1.5; cursor: pointer;
+            transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+            position: relative;
+        }
+        .record-item:hover {
+            background: #2a2a35;
+            border-left-color: var(--gold);
+            transform: translateX(4px);
+        }
+        .record-item.active-replaying {
+            border-left-color: var(--gold);
+            background: #2f2f3e;
+            box-shadow: 0 0 12px rgba(212, 175, 55, 0.4);
+        }
+
+        .record-header-row {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
+        }
+        .record-meta { color: #888; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .replay-badge {
+            background: rgba(52, 152, 219, 0.2); color: #3498db; border: 1px solid #3498db;
+            font-size: 10px; font-weight: bold; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.5px;
+        }
+        .record-item:hover .replay-badge {
+            background: rgba(212, 175, 55, 0.2); color: var(--gold); border-color: var(--gold);
+        }
+
+        .placed-summary { color: #fff; margin-bottom: 3px; }
+        .placed-summary b { color: var(--gold); }
+
+        #record-list::-webkit-scrollbar { width: 6px; }
+        #record-list::-webkit-scrollbar-track { background: #1f1f26; }
+        #record-list::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Set 4 Top-Right Badge -->
+        <div class="set-indicator-badge">🏷️ Set 4</div>
+
+        <div class="workspace-grid">
+            
+            <!-- PRIMARY SCALE -->
+            <div class="scale-column primary-col">
+                <div class="scale-title" style="color: var(--gold);">★ Primary Scale</div>
+                <div class="scale-graphic-container">
+                    <div class="scale-base"><div class="scale-pillar"></div></div>
+                    <div id="beam-p" class="scale-beam-assembly">
+                        <div class="scale-beam">
+                            <div class="hanger hanger-left" id="hanger-p-l">
+                                <div class="pan pan-left" id="pan-p-l">
+                                    <div class="pan-cubes-shelf" id="cubes-p-l"></div>
+                                    <div class="pan-blocks-shelf" id="blocks-p-l"></div>
+                                </div>
+                            </div>
+                            <div class="hanger hanger-right" id="hanger-p-r">
+                                <div class="pan pan-right" id="pan-p-r">
+                                    <div class="pan-cubes-shelf" id="cubes-p-r"></div>
+                                    <div class="pan-blocks-shelf" id="blocks-p-r"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="result-p" class="result-box balanced">⚖️ BALANCED</div>
+            </div>
+
+            <!-- SECONDARY SCALE -->
+            <div class="scale-column secondary-col">
+                <div class="scale-title" style="color: var(--silver);">🌙 Secondary Scale</div>
+                <div class="scale-graphic-container">
+                    <div class="scale-base"><div class="scale-pillar"></div></div>
+                    <div id="beam-s" class="scale-beam-assembly">
+                        <div class="scale-beam">
+                            <div class="hanger hanger-left" id="hanger-s-l">
+                                <div class="pan pan-left" id="pan-s-l">
+                                    <div class="pan-cubes-shelf" id="cubes-s-l"></div>
+                                    <div class="pan-blocks-shelf" id="blocks-s-l"></div>
+                                </div>
+                            </div>
+                            <div class="hanger hanger-right" id="hanger-s-r">
+                                <div class="pan pan-right" id="pan-s-r">
+                                    <div class="pan-cubes-shelf" id="cubes-s-r"></div>
+                                    <div class="pan-blocks-shelf" id="blocks-s-r"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="result-s" class="result-box balanced">⚖️ BALANCED</div>
+            </div>
+
+        </div>
+
+        <div class="bottom-actions">
+            <button id="btn-update" class="btn-update" onclick="fetchUpdate()">🔄 Update Display</button>
+            <div id="status-text" class="status-text">Ready.</div>
+        </div>
+
+        <!-- DASHBOARD (INVENTORY & LOG) -->
+        <div class="dashboard-container">
+            
+            <div class="dashboard-panel">
+                <h3>📦 Group Inventory (Remaining Cubes)</h3>
+                <div class="group-selector-ui">
+                    <label style="font-weight: bold; color: var(--gold);">Highlight Group:</label>
+                    <select id="observer-group-selector" onchange="renderInventoryDisplay()">
+                        <option value="" selected>-- View All --</option>
+                        <option value="A">Group A</option>
+                        <option value="B">Group B</option>
+                        <option value="C">Group C</option>
+                        <option value="D">Group D</option>
+                    </select>
+                </div>
+                <table>
+                    <thead>
+                        <tr id="inventory-thead-tr">
+                            <th>Color</th>
+                            <th data-group="A">Group A</th>
+                            <th data-group="B">Group B</th>
+                            <th data-group="C">Group C</th>
+                            <th data-group="D">Group D</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-tbody"></tbody>
+                </table>
+            </div>
+
+            <div class="dashboard-panel">
+                <h3>📝 Calculation History & Placement Log</h3>
+                <div id="record-list">
+                    <div class="record-placeholder">No records loaded yet. Tap "🔄 Update Display" to sync.</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Target Google Sheet ID for Set 4 (replace with your new Sheet ID)
+        const SPREADSHEET_ID = 'YOUR_NEW_SET_4_SPREADSHEET_ID_HERE';
+        const colors = ['red', 'orange', 'green', 'blue', 'purple'];
+        const colorLabels = { red: 'Red', orange: 'Orange', green: 'Green', blue: 'Blue', purple: 'Purple' };
+        const groups = ['A', 'B', 'C', 'D'];
+
+        let currentState = {
+            p: { l: {red:0, orange:0, green:0, blue:0, purple:0}, r: {red:0, orange:0, green:0, blue:0, purple:0} },
+            s: { l: {red:0, orange:0, green:0, blue:0, purple:0}, r: {red:0, orange:0, green:0, blue:0, purple:0} }
+        };
+
+        let groupInventory = {};
+        let animationQueue = [];
+        let pendingResultData = null;
+        let isAnimating = false;
+        let parsedHistoryRecords = [];
+
+        function resetInventoryToDefault() {
+            groups.forEach(g => {
+                groupInventory[g] = { red: 4, orange: 4, green: 4, blue: 4, purple: 4 };
+            });
+        }
+
+        function renderInventoryDisplay() {
+            const tbody = document.getElementById('inventory-tbody');
+            tbody.innerHTML = '';
+            
+            const selectedGroup = document.getElementById('observer-group-selector').value;
+
+            const thRow = document.getElementById('inventory-thead-tr');
+            Array.from(thRow.children).forEach(th => {
+                const groupAttr = th.getAttribute('data-group');
+                if (groupAttr) {
+                    th.className = (selectedGroup && selectedGroup !== groupAttr) ? 'dimmed' : (selectedGroup === groupAttr ? 'highlighted-th' : '');
+                }
+            });
+
+            colors.forEach(color => {
+                let tr = document.createElement('tr');
+                let html = `<td class="color-cell"><div class="color-dot" style="background: var(--${color});"></div> ${colorLabels[color]}</td>`;
+                
+                groups.forEach(g => {
+                    let count = groupInventory[g][color];
+                    
+                    let cls = "";
+                    if (selectedGroup && selectedGroup !== g) cls = "dimmed";
+                    else if (selectedGroup === g) cls = "highlighted-col";
+                    
+                    let inlineStyle = "";
+                    if (count === 0 && (!selectedGroup || selectedGroup === g)) inlineStyle = "color: #ff4d4d; font-weight: bold;";
+                    
+                    html += `<td class="${cls}" style="${inlineStyle}">${count}</td>`;
+                });
+                tr.innerHTML = html;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function fetchUpdate() {
+            if (isAnimating) return;
+            const btn = document.getElementById('btn-update');
+            const status = document.getElementById('status-text');
+            btn.disabled = true;
+            status.innerText = "Syncing latest result with Google Sheet (Set 4)...";
+
+            const csvUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&headers=1&tq&nocache=${Date.now()}`;
+
+            fetch(csvUrl)
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}: Sheet is private or inaccessible.`);
+                    return res.text();
+                })
+                .then(csvText => {
+                    parseCsvHistory(csvText);
+                })
+                .catch(err => {
+                    status.innerHTML = `<span style="color:#ff6b6b;">⚠️ Sync Error: Ensure Sheet is set to <b>"Anyone with the link can view"</b>!</span>`;
+                    btn.disabled = false;
+                });
+        }
+
+        function parseCsvHistory(csvText) {
+            const workbook = XLSX.read(csvText, { type: 'string' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+            if (!jsonRows || jsonRows.length <= 1) {
+                document.getElementById('status-text').innerText = "No calculations found in sheet yet.";
+                document.getElementById('btn-update').disabled = false;
+                return;
+            }
+
+            const headerRow = jsonRows[0].map(h => String(h).toLowerCase().trim());
+            const hasGroup = headerRow.some(h => h.includes('group'));
+            
+            let colTimestamp = 0, colGroup = 1, colWeights = 2;
+            let colPL = 3, colPR = 4, colPRes = 5;
+            let colSL = 6, colSR = 7, colSRes = 8;
+
+            if (!hasGroup) {
+                colTimestamp = 0; colGroup = -1; colWeights = 1;
+                colPL = 2; colPR = 3; colPRes = 4;
+                colSL = 5; colSR = 6; colSRes = 7;
+            }
+
+            let historyArray = [];
+            for (let i = 1; i < jsonRows.length; i++) {
+                let row = jsonRows[i];
+                if (!row || row.length === 0) continue;
+
+                historyArray.push({
+                    rowNumber: i + 1,
+                    timestamp: String(row[colTimestamp] || new Date().toLocaleTimeString()),
+                    group: colGroup >= 0 ? String(row[colGroup] || "-") : "-",
+                    weights: String(row[colWeights] || ""),
+                    primaryLeft: String(row[colPL] || ""),
+                    primaryRight: String(row[colPR] || ""),
+                    primaryResult: String(row[colPRes] || "⚖️ BALANCED"),
+                    secondaryLeft: String(row[colSL] || ""),
+                    secondaryRight: String(row[colSR] || ""),
+                    secondaryResult: String(row[colSRes] || "⚖️ BALANCED")
+                });
+            }
+
+            processAllRowsData({ history: historyArray });
+        }
+
+        function parsePanString(str) {
+            let res = {red:0, orange:0, green:0, blue:0, purple:0};
+            if (!str || typeof str !== 'string') return res;
+            let s = str.trim();
+            if (s === '' || s.toLowerCase() === 'empty') return res;
+
+            if (s.includes('|')) return res;
+
+            let items = s.replace(/;/g, ',').split(',');
+
+            items.forEach(item => {
+                let trimmed = item.trim();
+                if (!trimmed) return;
+
+                let colonMatch = trimmed.match(/^([a-zA-Z]+)\s*[:=]\s*(\d+)/);
+                if (colonMatch) {
+                    applyColorQty(res, colonMatch[1].toLowerCase(), parseInt(colonMatch[2], 10));
+                    return;
+                }
+
+                let qtyColorMatch = trimmed.match(/^(\d+)\s*([a-zA-Z]+)/);
+                if (qtyColorMatch) {
+                    applyColorQty(res, qtyColorMatch[2].toLowerCase(), parseInt(qtyColorMatch[1], 10));
+                    return;
+                }
+            });
+
+            return res;
+        }
+
+        function applyColorQty(res, key, qty) {
+            if (isNaN(qty)) return;
+            if (key === 'red' || key === 'r') res.red = qty;
+            else if (key === 'orange' || key === 'o') res.orange = qty;
+            else if (key === 'green' || key === 'g') res.green = qty;
+            else if (key === 'blue' || key === 'b') res.blue = qty;
+            else if (key === 'purple' || key === 'p') res.purple = qty;
+        }
+
+        function formatDeltaString(deltaObj) {
+            let items = [];
+            colors.forEach(c => {
+                if (deltaObj[c] > 0) {
+                    items.push(`+${colorLabels[c]} x${deltaObj[c]}`);
+                }
+            });
+            return items.length > 0 ? items.join(', ') : 'None';
+        }
+
+        function processAllRowsData(data) {
+            const btn = document.getElementById('btn-update');
+            const status = document.getElementById('status-text');
+
+            if (!data || !data.history || data.history.length === 0) {
+                status.innerText = "No calculations found.";
+                btn.disabled = false;
+                return;
+            }
+
+            const rawHistory = data.history;
+            resetInventoryToDefault();
+
+            parsedHistoryRecords = [];
+            let runningState = {
+                p: { l: {red:0, orange:0, green:0, blue:0, purple:0}, r: {red:0, orange:0, green:0, blue:0, purple:0} },
+                s: { l: {red:0, orange:0, green:0, blue:0, purple:0}, r: {red:0, orange:0, green:0, blue:0, purple:0} }
+            };
+
+            rawHistory.forEach(row => {
+                let g = String(row.group).trim();
+                let targetStates = {
+                    p: { l: parsePanString(row.primaryLeft), r: parsePanString(row.primaryRight) },
+                    s: { l: parsePanString(row.secondaryLeft), r: parsePanString(row.secondaryRight) }
+                };
+
+                let prevStateSnapshot = JSON.parse(JSON.stringify(runningState));
+                let placedDeltas = {
+                    p: { l: {}, r: {} },
+                    s: { l: {}, r: {} }
+                };
+
+                let totalTurnAdded = 0;
+
+                ['p', 's'].forEach(scale => {
+                    ['l', 'r'].forEach(side => {
+                        colors.forEach(c => {
+                            let diff = targetStates[scale][side][c] - prevStateSnapshot[scale][side][c];
+                            placedDeltas[scale][side][c] = Math.max(0, diff);
+                            if (diff > 0) totalTurnAdded += diff;
+                        });
+                    });
+                });
+
+                if (groups.includes(g) && groupInventory[g]) {
+                    ['p', 's'].forEach(scale => {
+                        ['l', 'r'].forEach(side => {
+                            colors.forEach(c => {
+                                let placed = placedDeltas[scale][side][c];
+                                if (placed > 0) {
+                                    groupInventory[g][c] = Math.max(0, groupInventory[g][c] - placed);
+                                }
+                            });
+                        });
+                    });
+                }
+
+                parsedHistoryRecords.push({
+                    rowNumber: row.rowNumber,
+                    timestamp: row.timestamp,
+                    group: g,
+                    primaryResult: row.primaryResult,
+                    secondaryResult: row.secondaryResult,
+                    prevState: prevStateSnapshot,
+                    targetState: targetStates,
+                    deltas: placedDeltas,
+                    totalAdded: totalTurnAdded
+                });
+
+                runningState = JSON.parse(JSON.stringify(targetStates));
+            });
+
+            renderHistoryCards();
+            renderInventoryDisplay();
+
+            // Always display the latest result whenever "Update Display" is clicked
+            const latestRecord = parsedHistoryRecords[parsedHistoryRecords.length - 1];
+            
+            document.querySelectorAll('.record-item').forEach(c => c.classList.remove('active-replaying'));
+            const latestCard = document.getElementById(`history-card-${latestRecord.rowNumber}`);
+            if (latestCard) latestCard.classList.add('active-replaying');
+
+            playTurnAnimation(latestRecord, true);
+        }
+
+        function renderHistoryCards() {
+            const list = document.getElementById('record-list');
+            list.innerHTML = '';
+
+            for (let i = parsedHistoryRecords.length - 1; i >= 0; i--) {
+                const record = parsedHistoryRecords[i];
+                const card = document.createElement('div');
+                card.className = 'record-item';
+                card.id = `history-card-${record.rowNumber}`;
+                card.onclick = () => replayFromCard(record);
+
+                const pL = formatDeltaString(record.deltas.p.l);
+                const pR = formatDeltaString(record.deltas.p.r);
+                const sL = formatDeltaString(record.deltas.s.l);
+                const sR = formatDeltaString(record.deltas.s.r);
+
+                card.innerHTML = `
+                    <div class="record-header-row">
+                        <div class="record-meta">Row #${record.rowNumber} • ${record.timestamp} • <b>Group ${record.group}</b></div>
+                        <div class="replay-badge">▶ Click to Replay</div>
+                    </div>
+                    <div class="placed-summary">
+                        ⭐ <b>Primary Added:</b> Left [${pL}] | Right [${pR}] ➔ <span style="font-weight:bold;">${record.primaryResult}</span>
+                    </div>
+                    <div class="placed-summary">
+                        🌙 <b>Secondary Added:</b> Left [${sL}] | Right [${sR}] ➔ <span style="font-weight:bold;">${record.secondaryResult}</span>
+                    </div>
+                `;
+                list.appendChild(card);
+            }
+        }
+
+        function replayFromCard(record) {
+            if (isAnimating) return;
+            
+            document.querySelectorAll('.record-item').forEach(c => c.classList.remove('active-replaying'));
+            const cardEl = document.getElementById(`history-card-${record.rowNumber}`);
+            if (cardEl) cardEl.classList.add('active-replaying');
+
+            playTurnAnimation(record, false);
+        }
+
+        function playTurnAnimation(record, isLatest = false) {
+            isAnimating = true;
+            document.getElementById('btn-update').disabled = true;
+
+            const status = document.getElementById('status-text');
+            status.innerText = isLatest 
+                ? `Loading Latest Calculation: Row #${record.rowNumber} (Group ${record.group})...`
+                : `Replaying Turn #${record.rowNumber} (Group ${record.group}): Setting scale to prior state...`;
+
+            resetScaleRotations();
+
+            currentState = JSON.parse(JSON.stringify(record.prevState));
+            hardRenderAllPans();
+
+            animationQueue = [];
+            ['p', 's'].forEach(scale => {
+                ['l', 'r'].forEach(side => {
+                    colors.forEach(c => {
+                        let count = record.deltas[scale][side][c];
+                        let finalCount = record.targetState[scale][side][c];
+                        if (count > 0) {
+                            if (finalCount >= 10) {
+                                animationQueue.push({ type: 'block', scale, side, color: c, count: finalCount });
+                            } else {
+                                for (let k = 0; k < count; k++) {
+                                    animationQueue.push({ type: 'cube', scale, side, color: c });
+                                }
+                            }
+                        }
+                    });
+                });
+            });
+
+            pendingResultData = record;
+
+            if (animationQueue.length > 0) {
+                status.innerText = isLatest 
+                    ? `Showing latest cubes placed by Group ${record.group}...`
+                    : `Dropping cubes placed by Group ${record.group}...`;
+                setTimeout(processQueue, 300);
+            } else {
+                status.innerText = `Displaying latest result for Row #${record.rowNumber}...`;
+                setTimeout(triggerSwings, 400);
+            }
+        }
+
+        function processQueue() {
+            if (animationQueue.length === 0) {
+                setTimeout(triggerSwings, 500);
+                return;
+            }
+
+            let task = animationQueue.shift();
+
+            if (task.type === 'cube') {
+                currentState[task.scale][task.side][task.color] += 1;
+                let container = document.getElementById(`cubes-${task.scale}-${task.side}`);
+                let cube = document.createElement('div');
+                cube.className = 'cube-sprite dropping';
+                cube.style.backgroundColor = `var(--${task.color})`;
+                container.appendChild(cube);
+            } else if (task.type === 'block') {
+                currentState[task.scale][task.side][task.color] = task.count;
+                renderPan(task.scale, task.side, currentState, task.color);
+            }
+
+            setTimeout(processQueue, 300);
+        }
+
+        function renderPan(scale, side, stateObj, animatedColor = null) {
+            let cubesEl = document.getElementById(`cubes-${scale}-${side}`);
+            let blocksEl = document.getElementById(`blocks-${scale}-${side}`);
+            cubesEl.innerHTML = '';
+            blocksEl.innerHTML = '';
+
+            colors.forEach(color => {
+                let count = stateObj[scale][side][color];
+                if (count >= 10) {
+                    let strip = document.createElement('div');
+                    strip.className = 'color-row-strip';
+                    if (animatedColor === color) {
+                        strip.classList.add('dropping');
+                    }
+                    strip.style.backgroundColor = `var(--${color})`;
+                    strip.innerHTML = `<span>${colorLabels[color]}</span><span>x${count}</span>`;
+                    blocksEl.appendChild(strip);
+                } else if (count > 0) {
+                    for (let i = 0; i < count; i++) {
+                        let cube = document.createElement('div');
+                        cube.className = 'cube-sprite';
+                        cube.style.backgroundColor = `var(--${color})`;
+                        cubesEl.appendChild(cube);
+                    }
+                }
+            });
+        }
+
+        function hardRenderAllPans() {
+            ['p', 's'].forEach(scale => {
+                ['l', 'r'].forEach(side => {
+                    renderPan(scale, side, currentState);
+                });
+            });
+        }
+
+        function resetScaleRotations() {
+            ['p', 's'].forEach(scale => {
+                document.getElementById(`beam-${scale}`).style.transform = `translateX(-50%) rotate(0deg)`;
+                document.getElementById(`pan-${scale}-l`).style.transform = `translateX(-50%) rotate(0deg)`;
+                document.getElementById(`pan-${scale}-r`).style.transform = `translateX(-50%) rotate(0deg)`;
+                document.getElementById(`result-${scale}`).classList.remove("active");
+            });
+        }
+
+        function applySwingToScale(scale, resultText) {
+            let beam = document.getElementById(`beam-${scale}`);
+            let panL = document.getElementById(`pan-${scale}-l`);
+            let panR = document.getElementById(`pan-${scale}-r`);
+            let resBox = document.getElementById(`result-${scale}`);
+
+            let angle = 0;
+            let finalClass = "balanced";
+
+            if (resultText && resultText.includes("LEFT")) {
+                angle = -8;
+                finalClass = "left-heavy";
+            } else if (resultText && resultText.includes("RIGHT")) {
+                angle = 8;
+                finalClass = "right-heavy";
+            }
+
+            beam.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+            panL.style.transform = `translateX(-50%) rotate(${-angle}deg)`;
+            panR.style.transform = `translateX(-50%) rotate(${-angle}deg)`;
+
+            resBox.className = `result-box active ${finalClass}`;
+            resBox.innerHTML = resultText || "⚖️ BALANCED";
+        }
+
+        function triggerSwings() {
+            if (pendingResultData) {
+                applySwingToScale('p', pendingResultData.primaryResult);
+                applySwingToScale('s', pendingResultData.secondaryResult);
+                document.getElementById('status-text').innerText = `✓ Latest Result Displayed: Row #${pendingResultData.rowNumber} (Group ${pendingResultData.group}).`;
+            }
+            isAnimating = false;
+            document.getElementById('btn-update').disabled = false;
+        }
+
+        window.onload = function() {
+            initInventory();
+            fetchUpdate();
+        };
+    </script>
+</body>
+</html>
